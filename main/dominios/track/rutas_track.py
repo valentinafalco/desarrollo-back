@@ -4,7 +4,9 @@ from main.dominios.track.controller_track import (
     obtener_track_controller,
     crear_track_controller,
     modificar_track_controller,
-    eliminar_track_controller
+    eliminar_track_controller,
+    sumar_like_controller,
+    sumar_reproduccion_controller
 )
 
 # Crear blueprint para agrupar rutas relacionadas con Track
@@ -36,3 +38,12 @@ def modificar_track(id):
 def eliminar_track(id):
     return eliminar_track_controller(id)
 
+#PATCH - Sumar likes
+@track_bp.route('/tracks/<int:id>/like', methods=['PATCH'])
+def ruta_sumar_like(id):
+    return sumar_like_controller(id)
+
+# PATCH para sumar reproducción
+@track_bp.route('/tracks/<int:id>/reproducir', methods=['PATCH'])
+def ruta_sumar_reproduccion(id):
+    return sumar_reproduccion_controller(id)

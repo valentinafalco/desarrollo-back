@@ -32,7 +32,7 @@ def validar_campos(data):
     if not Track.query.get(data['idTrack']):
         raise ValueError("Track no válido")
 
-    if not MetodoPago.query.get(data['idMetodo']):
+    if not MetodoPago_Usuario.query.get(data['idMetodo']):
         raise ValueError("Método de pago no válido")
 
     return fecha

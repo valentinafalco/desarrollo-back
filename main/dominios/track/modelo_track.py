@@ -11,9 +11,10 @@ class Track(db.Model):
     formatoTrack = db.Column(db.String(50))
     precioTrack = db.Column(db.Float)
     fechaLanzamiento = db.Column(db.Date)
-    imagenTrack = db.Column(db.LargeBinary)
+    imagenTrack = db.Column(db.LargeBinary)  # almacena la imagen en bytes (binario)
     favoritosTrack = db.Column(db.Integer, default=0)
     reproduccionesTrack = db.Column(db.Integer, default=0)
+    linkAudio = db.Column(db.String(255), nullable=True)  # ruta o URL del mp3
 
     idDiscografica = db.Column(db.Integer, db.ForeignKey('discografica.idDiscografica'))
     idGenero = db.Column(db.Integer, db.ForeignKey('genero.idGenero'))
@@ -34,5 +35,10 @@ class Track(db.Model):
             "bpm": self.bpm,
             "duracion": str(self.duracion) if self.duracion else None,
             "precioTrack": self.precioTrack,
-            "fechaLanzamiento": self.fechaLanzamiento.isoformat() if self.fechaLanzamiento else None
+            "fechaLanzamiento": self.fechaLanzamiento.isoformat() if self.fechaLanzamiento else None,
+            "favoritosTrack": self.favoritosTrack,
+            "reproduccionesTrack": self.reproduccionesTrack,
+            "linkAudio": self.linkAudio,
+            #imagen convertida a base64 para enviar al front
+            "imagenTrack": base64.b64encode(self.imagenTrack).decode('utf-8') if self.imagenTrack else None
         }

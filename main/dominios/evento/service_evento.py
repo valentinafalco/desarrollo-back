@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, time
+from datetime import datetime
 from main.extension import db
 from main.dominios.evento.modelo_evento import Evento
 from main.dominios.ubicacion.modelo_ubicacion import Ubicacion
@@ -8,18 +8,40 @@ from main.dominios.ubicacion.modelo_ubicacion import Ubicacion
 # -------------------- VALIDAR CAMPOS --------------------
 
 def validar_campos(data):
-    campo_obligatorio = ['idUbicacion']
+    campos_obligatorios = ['idUbicacion', 'fechaEvento', 'horarioEvento']
 
-    # Verificar presencia y contenido de los campos
-    for campo in campo_obligatorio:
+    # Verificar que estén todos los campos requeridos
+    for campo in campos_obligatorios:
         if campo not in data:
             raise ValueError(f"Falta el campo requerido: {campo}")
         if not data[campo]:
             raise ValueError(f"El campo {campo} no puede estar vacío")
 
-    # Validar existencia de la ubicación
-    if not Ubicacion.query.get(data['idUbicacion']):
+    # Validar que la ubicación exista
+    ubicacion = Ubicacion.query.get(data['idUbicacion'])
+    if not ubicacion:
         raise ValueError("Ubicación no válida")
+
+    # Validar y convertir la fecha
+    try:
+        fecha = datetime.strptime(data['fechaEvento'], '%Y-%m-%d').date()
+    except ValueError:
+        raise ValueError("Formato de fecha no válido. Use 'YYYY-MM-DD'.")
+
+    # Validar y convertir la hora
+    try:
+        hora = datetime.strptime(data['horarioEvento'], '%H:%M').time()
+    except ValueError:
+        raise ValueError("Formato de hora no válido. Use 'HH:MM' (24h).")
+
+    # Validar duplicado: mismo día, hora y ubicación
+    evento_existente = Evento.query.filter_by(
+        idUbicacion=data['idUbicacion'],
+        fechaEvento=fecha,
+        horarioEvento=hora
+    ).first()
+    if evento_existente:
+        raise ValueError("Ya existe un evento en esa ubicación, fecha y hora.")
 
     return fecha, hora
 
