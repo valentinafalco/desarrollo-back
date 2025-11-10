@@ -6,7 +6,7 @@ from main.dominios.publicaciones.controller_publicacionEvento import (
     eliminar_publicacion_evento_controller
 )
 
-publicacion_evento_bp = Blueprint("publicacionEvento", _name_)
+publicacion_evento_bp = Blueprint("publicacionEvento", __name__)
 
 @publicacion_evento_bp.route("/publicacionesEvento", methods=["POST"])
 def crear_publicacion_evento():
