@@ -10,7 +10,7 @@ class PublicacionEvento(db.Model):
     tipoEvento = db.Column(db.String(40))
     ubicacion = db.Column(db.String(300))
     fechaEvento = db.Column(db.Date, default=date.today)
-    imagen = db.Column(db.LargeBinary)  # ✅ tipo LONGBLOB
+    imagen = db.Column(db.LargeBinary)  
 
     idTrack = db.Column(db.Integer, db.ForeignKey("track.idTrack"), nullable=False)
     idUsuario = db.Column(db.Integer, db.ForeignKey("usuario.idUsuario"), nullable=False)
@@ -20,11 +20,6 @@ class PublicacionEvento(db.Model):
     usuario = db.relationship("Usuario", backref="eventos")
 
     def serialize(self):
-        """
-        Devuelve la publicación como diccionario.
-        No incluye la imagen directamente (por ser binaria),
-        pero sí un indicador de si existe y el URL se genera en el controller.
-        """
         return {
             "idPublicacion": self.idPublicacion,
             "tituloEvento": self.tituloEvento,
@@ -36,5 +31,5 @@ class PublicacionEvento(db.Model):
             "idUsuario": self.idUsuario,
             "track": self.track.nombreTrack if self.track else None,
             "usuario": self.usuario.nombreUsuario if self.usuario else None,
-            "tieneImagen": bool(self.imagen)  # 🔹 para saber si hay imagen cargada
+            "tieneImagen": bool(self.imagen)  
         }

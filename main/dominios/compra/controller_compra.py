@@ -46,7 +46,7 @@ def serialize_track(t):
 
     # Artista: priorizamos el nombre del usuario dueño del track
     artista = _first(
-        getattr(getattr(t, "usuario", None), "nombreUsuario", None),  # ← usuario que subió el track
+        getattr(getattr(t, "usuario", None), "nombreUsuario", None),  # usuario que subió el track
         getattr(t, "artista", None),
         getattr(t, "autor", None),
     )
@@ -91,16 +91,16 @@ def serialize_track(t):
     return {
         "idTrack": _first(getattr(t, "idTrack", None), getattr(t, "id", None)),
         "nombreTrack": _first(getattr(t, "nombreTrack", None), getattr(t, "titulo", None)),
-        "artista": artista,                        # 👈 ahora sale del usuario si existe
+        "artista": artista,                        
         "discografica": discografica_nombre,
         "genero": genero_nombre,
         "formato": formato,
-        "precio": precio,                          # 👈 float seguro
+        "precio": precio,                          
         "portadaURL": portada_url,
     }
 
 def serialize_compra(c):
-    """Serializa una Compra e incluye el Track embebido si existe."""
+
     if c is None:
         return None
 
@@ -113,7 +113,7 @@ def serialize_compra(c):
     # Tomamos precioTotal de 'montoCompra' (tu modelo) y como fallback del track
     track_obj = _first(getattr(c, "track", None), getattr(c, "Track", None))
     precio_total = _first(
-        getattr(c, "montoCompra", None),           # 👈 nombre real en tu service/modelo
+        getattr(c, "montoCompra", None),           
         getattr(c, "precioTotal", None),
         getattr(c, "monto", None),
         getattr(c, "precio", None),
@@ -129,7 +129,7 @@ def serialize_compra(c):
     return {
         "idCompra": _first(getattr(c, "idCompra", None), getattr(c, "id", None)),
         "fechaCompra": fecha_compra,
-        "precioTotal": precio_total,               # 👈 ahora llega bien
+        "precioTotal": precio_total,               
         "idUsuario": getattr(c, "idUsuario", None),
         "idTrack": id_track,
         "track": serialize_track(track_obj),

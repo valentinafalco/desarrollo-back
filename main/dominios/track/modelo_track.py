@@ -39,6 +39,5 @@ class Track(db.Model):
             "favoritosTrack": self.favoritosTrack,
             "reproduccionesTrack": self.reproduccionesTrack,
             "linkAudio": self.linkAudio,
-            #imagen convertida a base64 para enviar al front
             "imagenTrack": base64.b64encode(self.imagenTrack).decode('utf-8') if self.imagenTrack else None
         }

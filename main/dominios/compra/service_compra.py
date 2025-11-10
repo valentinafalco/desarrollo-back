@@ -114,10 +114,7 @@ def eliminar_compra(id):
         raise e
 
 def listar_compras(id_usuario_comprador: int):
-    """
-    Devuelve SOLO las compras del usuario comprador indicado.
-    Pre-cargamos track + relaciones para que el front pueda mostrar artista/label/género.
-    """
+
     q = (
         db.session.query(Compra)
         .options(

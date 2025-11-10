@@ -51,8 +51,7 @@ def actualizar_usuario(id, data):
         usuario.imagenUsuario = data.get('imagenUsuario', usuario.imagenUsuario)
         usuario.descripcionUsuario = data.get('descripcionUsuario', usuario.descripcionUsuario)
         usuario.mailUsuario = data.get('mailUsuario', usuario.mailUsuario)
-
-        # 🔹 Si envían una nueva contraseña, se rehashea
+        
         if 'contrasenaUsuario' in data and data['contrasenaUsuario']:
             usuario.set_password(data['contrasenaUsuario'])
 

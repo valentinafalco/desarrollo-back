@@ -30,7 +30,7 @@ def me_controller():
 
     token = auth.split(' ', 1)[1]
     try:
-        secret = current_app.config.get('SECRET_KEY', 'clave_super_segura')  # mismo secreto
+        secret = current_app.config.get('SECRET_KEY', 'clave_super_segura')  
         payload = jwt.decode(token, secret, algorithms=['HS256'])
 
         user_id = payload.get('idUsuario')

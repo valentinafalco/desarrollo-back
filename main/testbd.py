@@ -10,6 +10,6 @@ app = create_app()
 try:
     with app.app_context():
         with db.engine.connect() as conn:
-            print("✅ Conexión exitosa a la base de datos")
+            print("Conexión exitosa a la base de datos")
 except Exception as e:
-    print("❌ Error:", e)
+    print("Error:", e)

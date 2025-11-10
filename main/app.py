@@ -57,9 +57,9 @@ def create_app():
 
         response = make_response(send_from_directory(audio_path, filename))
         response.headers["Content-Type"] = "audio/mpeg"
-        response.headers["Accept-Ranges"] = "bytes"  # ✅ permite que el navegador haga streaming
+        response.headers["Accept-Ranges"] = "bytes"  
         response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"  # ✅ evita ORB
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"  
         return response
 
     @app.route('/api/health', methods=['GET'])

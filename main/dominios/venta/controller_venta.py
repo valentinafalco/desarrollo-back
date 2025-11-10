@@ -97,9 +97,7 @@ def _serialize_track_public(t):
     }
 
 def _serialize_venta_from_compra(c):
-    """
-    Serializa una 'venta' a partir de una Compra (derivada): incluye track embebido.
-    """
+   
     if c is None:
         return None
 
@@ -226,10 +224,7 @@ def _serialize_venta_from_compra(c):
     }
 
 def listar_ventas_controller():
-    """
-    GET /ventas?idUsuario=X -> ventas del VENDEDOR X (dueño del track)
-    Si no viene idUsuario, lo toma del token.
-    """
+   
     try:
         id_usuario_vendedor = request.args.get("idUsuario", type=int)
         if not id_usuario_vendedor:

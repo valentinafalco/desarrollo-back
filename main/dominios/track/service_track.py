@@ -11,7 +11,7 @@ from main.dominios.genero.modelo_genero import Genero
 from main.dominios.discografica.modelo_discografica import Discografica
 from main.dominios.usuario.modelo_usuario import Usuario
 
-# Carpeta donde se guardarán los audios
+
 UPLOAD_FOLDER = "main/static/uploads/audios"
 
 # -------------------- VALIDAR CAMPOS --------------------
@@ -44,7 +44,7 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
     try:
         validar_campos(data)
 
-        # Imagen (igual que antes)
+
         imagen_bytes = None
         if archivo_imagen:
             imagen_bytes = archivo_imagen.read()
@@ -52,22 +52,22 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
             b64 = data.get('imagenTrack')
             imagen_bytes = base64.b64decode(b64) if b64 else None
 
-        # 🔊 Audio
+        
         link_audio = None
         if archivo_audio:
             if not archivo_audio.filename.lower().endswith(".mp3"):
                 raise ValueError("El archivo debe ser .mp3")
-            upload_dir = current_app.config['UPLOAD_AUDIO_FOLDER']            # ✅
+            upload_dir = current_app.config['UPLOAD_AUDIO_FOLDER']            
             os.makedirs(upload_dir, exist_ok=True)
 
-            # opcional: evitar colisiones de nombres
+            
             from werkzeug.utils import secure_filename
             fname = secure_filename(archivo_audio.filename)
 
             path_abs = os.path.join(upload_dir, fname)
             archivo_audio.save(path_abs)
 
-            # ✅ URL pública: que apunte a /static/uploads/audios/...
+           
             rel_path = f"uploads/audios/{fname}"
             link_audio = url_for('static', filename=rel_path, _external=False)
 
@@ -84,7 +84,7 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
             idUsuario=data.get('idUsuario'),
             favoritosTrack=data.get('favoritosTrack', 0),
             reproduccionesTrack=data.get('reproduccionesTrack', 0),
-            linkAudio=link_audio                    # ✅ ahora es /static/uploads/audios/xxx.mp3
+            linkAudio=link_audio                   
         )
         db.session.add(nuevo_track)
         db.session.commit()
@@ -105,7 +105,7 @@ def actualizar_track(id, data, archivo_audio=None, archivo_imagen=None):
     try:
         validar_campos(data)
 
-        # Imagen nueva (archivo o base64)
+       
         if archivo_imagen:
             if not archivo_imagen.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
                 raise ValueError("La imagen debe ser formato .jpg o .png")
@@ -115,7 +115,7 @@ def actualizar_track(id, data, archivo_audio=None, archivo_imagen=None):
             if imagen_base64:
                 track.imagenTrack = base64.b64decode(imagen_base64)
 
-        # Audio nuevo (opcional)
+       
         if archivo_audio:
             if not archivo_audio.filename.endswith(".mp3"):
                 raise ValueError("El archivo debe ser formato .mp3")
@@ -125,7 +125,7 @@ def actualizar_track(id, data, archivo_audio=None, archivo_imagen=None):
             archivo_audio.save(ruta_archivo)
             track.linkAudio = f"/static/uploads/audios/{nombre_archivo}"
 
-        # Otros campos
+        
         track.nombreTrack = data.get('nombreTrack', track.nombreTrack)
         track.bpm = data.get('bpm', track.bpm)
         track.duracion = data.get('duracion', track.duracion)
@@ -140,7 +140,7 @@ def actualizar_track(id, data, archivo_audio=None, archivo_imagen=None):
 
         db.session.commit()
 
-        # Releer con relaciones para devolver completo
+        
         track = (
             db.session.query(Track)
             .options(
@@ -179,7 +179,7 @@ def listar_tracks():
         tracks = (
             db.session.query(Track)
             .options(
-                joinedload(Track.usuario),      # 👈 nombreUsuario disponible
+                joinedload(Track.usuario),      
                 joinedload(Track.discografica),
                 joinedload(Track.genero),
             )

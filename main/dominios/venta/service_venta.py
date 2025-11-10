@@ -97,10 +97,7 @@ def eliminar_venta(id):
 #     filtrando por vendedor (dueño del track) si se pasa id_usuario_vendedor.
 
 def listar_ventas(id_usuario_vendedor: int):
-    """
-    Devuelve las COMPRAS de todos los tracks cuyo dueño es el usuario vendedor.
-    Es la manera correcta de calcular "Mis Ventas".
-    """
+
     q = (
         db.session.query(Compra)
         .join(Track, Compra.idTrack == Track.idTrack)
@@ -109,17 +106,14 @@ def listar_ventas(id_usuario_vendedor: int):
             joinedload(Compra.track).joinedload(Track.discografica),
             joinedload(Compra.track).joinedload(Track.genero),
         )
-        .filter(Track.idUsuario == id_usuario_vendedor)  # 👈 dueño del track (vendedor)
+        .filter(Track.idUsuario == id_usuario_vendedor) 
         .order_by(Compra.fechaCompra.desc())
     )
     return q.all()
 
 
 def obtener_venta(id):
-    """
-    Si necesitás seguir usando la tabla Venta real para obtener por id, se deja igual.
-    Para 'ventas derivadas', lo normal es no usar este get puntual.
-    """
+   
     venta = Venta.query.get(id)
     if not venta:
         raise ValueError("Venta no encontrada")
