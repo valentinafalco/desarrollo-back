@@ -113,22 +113,22 @@ def eliminar_compra(id):
         logging.exception("Error al eliminar la compra")
         raise e
 
-def listar_compras():
-    try:
-        compras = (
-            db.session.query(Compra)
-            .options(
-                joinedload(Compra.track).joinedload(Track.usuario),     # 👈 usuario dueño del track
-                joinedload(Compra.track).joinedload(Track.discografica),
-                joinedload(Compra.track).joinedload(Track.genero),
-            )
-            .all()
+def listar_compras(id_usuario_comprador: int):
+    """
+    Devuelve SOLO las compras del usuario comprador indicado.
+    Pre-cargamos track + relaciones para que el front pueda mostrar artista/label/género.
+    """
+    q = (
+        db.session.query(Compra)
+        .options(
+            joinedload(Compra.track).joinedload(Track.usuario),
+            joinedload(Compra.track).joinedload(Track.discografica),
+            joinedload(Compra.track).joinedload(Track.genero),
         )
-        # No lances error si no hay compras; devolvé []
-        return compras
-    except Exception as e:
-        logging.exception("Error al listar las compras")
-        raise e
+        .filter(Compra.idUsuario == id_usuario_comprador)  # 👈 comprador
+        .order_by(Compra.fechaCompra.desc())
+    )
+    return q.all()
 
 def obtener_compra(id):
     compra = (

@@ -96,30 +96,23 @@ def eliminar_venta(id):
 # 🔹 Clave: Listamos VENTAS derivadas de COMPRAS (Compra JOIN Track),
 #     filtrando por vendedor (dueño del track) si se pasa id_usuario_vendedor.
 
-def listar_ventas(id_usuario_vendedor: int | None = None):
+def listar_ventas(id_usuario_vendedor: int):
     """
-    Devuelve 'ventas' derivadas de la tabla Compra, filtrando por el dueño del track (vendedor).
-    Si id_usuario_vendedor es None, devuelve TODAS las ventas del sistema (todas las compras).
-
-    Retorna: lista de objetos Compra con .track cargado (usuario/discografica/genero).
+    Devuelve las COMPRAS de todos los tracks cuyo dueño es el usuario vendedor.
+    Es la manera correcta de calcular "Mis Ventas".
     """
-    try:
-        q = (
-            db.session.query(Compra)
-            .join(Track, Compra.idTrack == Track.idTrack)
-            .options(
-                joinedload(Compra.track).joinedload(Track.usuario),       # nombreUsuario del dueño
-                joinedload(Compra.track).joinedload(Track.discografica),  # opcional
-                joinedload(Compra.track).joinedload(Track.genero),        # opcional
-            )
+    q = (
+        db.session.query(Compra)
+        .join(Track, Compra.idTrack == Track.idTrack)
+        .options(
+            joinedload(Compra.track).joinedload(Track.usuario),
+            joinedload(Compra.track).joinedload(Track.discografica),
+            joinedload(Compra.track).joinedload(Track.genero),
         )
-        if id_usuario_vendedor is not None:
-            q = q.filter(Track.idUsuario == id_usuario_vendedor)
-
-        return q.all()
-    except Exception as e:
-        logging.exception("Error al listar las ventas derivadas de compras")
-        raise e
+        .filter(Track.idUsuario == id_usuario_vendedor)  # 👈 dueño del track (vendedor)
+        .order_by(Compra.fechaCompra.desc())
+    )
+    return q.all()
 
 
 def obtener_venta(id):

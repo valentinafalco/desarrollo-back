@@ -1,5 +1,5 @@
-from flask import request, jsonify
-import logging
+from flask import request, jsonify, current_app
+import logging, os, jwt
 from sqlalchemy.exc import SQLAlchemyError
 
 from main.dominios.venta.service_venta import (
@@ -186,21 +186,59 @@ def eliminar_venta_controller(id):
 
 
 # -------------------- LISTAR VENTAS (derivadas de compras) --------------------
+def _user_id_from_token():
+    auth = request.headers.get('Authorization', '')
+    if not auth.startswith('Bearer '):
+        return None
+    token = auth.split(' ', 1)[1]
+    try:
+        secret = current_app.config.get('SECRET_KEY', 'clave_super_segura')
+        payload = jwt.decode(token, secret, algorithms=['HS256'])
+        return payload.get('idUsuario')
+    except Exception:
+        return None
+
+def _serialize_venta_from_compra(c):
+    # Reutilizamos el mismo formato que en compras, porque la fuente es Compra
+    t = getattr(c, "track", None)
+    return {
+        "idVenta": getattr(c, "idCompra", None),  # id de la compra como id lógico de venta
+        "fechaVenta": c.fechaCompra.isoformat() if c.fechaCompra else None,
+        "precioTotal": float(getattr(c, "montoCompra", 0) or getattr(t, "precioTrack", 0) or 0),
+        "idUsuarioComprador": c.idUsuario,
+        "idTrack": getattr(t, "idTrack", getattr(c, "idTrack", None)),
+        "track": None if not t else {
+            "idTrack": t.idTrack,
+            "nombreTrack": getattr(t, "nombreTrack", None),
+            "usuario": {
+                "idUsuario": getattr(getattr(t, "usuario", None), "idUsuario", None),
+                "nombreUsuario": getattr(getattr(t, "usuario", None), "nombreUsuario", None)
+            },
+            "discografica": {
+                "nombreDiscografica": getattr(getattr(t, "discografica", None), "nombreDiscografica", None)
+            } if getattr(t, "discografica", None) else None,
+            "genero": {
+                "nombreGenero": getattr(getattr(t, "genero", None), "nombreGenero", None)
+            } if getattr(t, "genero", None) else None,
+            "precioTrack": float(getattr(t, "precioTrack", 0) or 0),
+            "formatoTrack": getattr(t, "formatoTrack", None),
+        }
+    }
+
 def listar_ventas_controller():
     """
-    GET /ventas?idUsuario=X  -> ventas del vendedor X (dueño del track)
-    (obligatorio idUsuario para no devolver ventas de otros)
+    GET /ventas?idUsuario=X -> ventas del VENDEDOR X (dueño del track)
+    Si no viene idUsuario, lo toma del token.
     """
     try:
         id_usuario_vendedor = request.args.get("idUsuario", type=int)
-
         if not id_usuario_vendedor:
-            return jsonify({
-                'error': 'idUsuario (vendedor) es requerido'
-            }), 400
+            id_usuario_vendedor = _user_id_from_token()
+        if not id_usuario_vendedor:
+            return jsonify({'error': 'idUsuario (vendedor) es requerido'}), 400
 
-        compras = service_listar_ventas(id_usuario_vendedor=id_usuario_vendedor)
-        payload = [_serialize_venta_from_compra(c) for c in compras]
+        compras_de_mis_tracks = service_listar_ventas(id_usuario_vendedor=id_usuario_vendedor)
+        payload = [_serialize_venta_from_compra(c) for c in compras_de_mis_tracks]
         return jsonify(payload), 200
 
     except SQLAlchemyError:
@@ -209,7 +247,6 @@ def listar_ventas_controller():
     except Exception:
         logging.exception("Error inesperado al listar las ventas")
         return jsonify({'error': 'Error en el servidor'}), 500
-
 
 
 # -------------------- OBTENER VENTA (tabla Venta) --------------------

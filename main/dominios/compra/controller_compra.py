@@ -1,5 +1,5 @@
-from flask import request, jsonify
-import logging
+from flask import request, jsonify, current_app
+import logging, os, jwt
 import base64
 from sqlalchemy.exc import SQLAlchemyError
 from main.dominios.compra.service_compra import (
@@ -182,17 +182,72 @@ def eliminar_compra_controller(id):
         return jsonify({'error': f'Error al eliminar la compra: {str(e)}'}), 500
 
 # -------------------- LISTAR COMPRAS --------------------
-def listar_compras_controller():
+def _user_id_from_token():
+    auth = request.headers.get('Authorization', '')
+    if not auth.startswith('Bearer '):
+        return None
+    token = auth.split(' ', 1)[1]
     try:
-        compras = listar_compras()  # ideal: con track y usuario ya cargados (eager loading)
-        compras_serializadas = [serialize_compra(c) for c in compras]
-        return jsonify(compras_serializadas), 200
-    except ValueError as ve:
-        return jsonify({'error': str(ve)}), 404
-    except Exception as e:
-        logging.exception("Error al listar las compras")
-        return jsonify({'error': f'Error al listar las compras: {str(e)}'}), 500
+        secret = current_app.config.get('SECRET_KEY', 'clave_super_segura')
+        payload = jwt.decode(token, secret, algorithms=['HS256'])
+        return payload.get('idUsuario')
+    except Exception:
+        return None
 
+def _serialize_compra(c):
+    t = getattr(c, "track", None)
+
+    def _get(obj, attr, default=None):
+        return getattr(obj, attr, default) if obj is not None else default
+
+    return {
+        "idCompra": _get(c, "idCompra"),
+        "fechaCompra": _get(c, "fechaCompra").isoformat() if _get(c, "fechaCompra") else None,
+        "precioTotal": float(_get(c, "montoCompra", 0) or _get(t, "precioTrack", 0) or 0),
+        "idUsuario": _get(c, "idUsuario"),    # comprador
+        "idTrack": _get(t, "idTrack", _get(c, "idTrack")),
+        "track": None if t is None else {
+            "idTrack": _get(t, "idTrack"),
+            "nombreTrack": _get(t, "nombreTrack"),
+            "precioTrack": float(_get(t, "precioTrack", 0) or 0),
+            "formatoTrack": _get(t, "formatoTrack"),
+            "genero": {
+                "nombreGenero": _get(_get(t, "genero"), "nombreGenero")
+            } if _get(t, "genero") else None,
+            "discografica": {
+                "nombreDiscografica": _get(_get(t, "discografica"), "nombreDiscografica")
+            } if _get(t, "discografica") else None,
+            "usuario": {
+                "idUsuario": _get(_get(t, "usuario"), "idUsuario"),
+                "nombreUsuario": _get(_get(t, "usuario"), "nombreUsuario"),
+            } if _get(t, "usuario") else None,
+            # imagen: si usás bytes en DB, tu front ya convierte a dataURL si hace falta
+            "portadaURL": _get(t, "portadaURL", None),
+            "imagenTrack": _get(t, "imagenTrack", None),
+        },
+    }
+
+def listar_compras_controller():
+    """
+    GET /compras?idUsuario=###  -> compras del comprador ###
+    Si falta el query param, intenta inferirlo desde el token.
+    """
+    try:
+        id_usuario = request.args.get("idUsuario", type=int)
+        if not id_usuario:
+            id_usuario = _user_id_from_token()
+        if not id_usuario:
+            return jsonify({'error': 'No se encontró el id del usuario.'}), 400
+
+        compras = listar_compras(id_usuario_comprador=id_usuario)
+        return jsonify([_serialize_compra(c) for c in compras]), 200
+
+    except SQLAlchemyError:
+        logging.exception("Error en la base de datos al listar compras")
+        return jsonify({'error': 'Error en la base de datos'}), 500
+    except Exception:
+        logging.exception("Error inesperado al listar compras")
+        return jsonify({'error': 'Error en el servidor'}), 500
 # -------------------- OBTENER COMPRA --------------------
 def obtener_compra_controller(id):
     try:

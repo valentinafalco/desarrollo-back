@@ -1,5 +1,5 @@
-import os
-import logging
+import os, base64, logging
+from flask import current_app, url_for
 import base64
 from datetime import datetime
 
@@ -44,29 +44,35 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
     try:
         validar_campos(data)
 
-        # Imagen (archivo o base64)
+        # Imagen (igual que antes)
         imagen_bytes = None
         if archivo_imagen:
-            if not archivo_imagen.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                raise ValueError("La imagen debe ser formato .jpg o .png")
             imagen_bytes = archivo_imagen.read()
         else:
-            imagen_base64 = data.get('imagenTrack')
-            imagen_bytes = base64.b64decode(imagen_base64) if imagen_base64 else None
+            b64 = data.get('imagenTrack')
+            imagen_bytes = base64.b64decode(b64) if b64 else None
 
-        # Audio (opcional)
+        # 🔊 Audio
         link_audio = None
         if archivo_audio:
-            if not archivo_audio.filename.endswith(".mp3"):
-                raise ValueError("El archivo debe ser formato .mp3")
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            nombre_archivo = archivo_audio.filename
-            ruta_archivo = os.path.join(UPLOAD_FOLDER, nombre_archivo)
-            archivo_audio.save(ruta_archivo)
-            link_audio = f"/static/uploads/audios/{nombre_archivo}"
+            if not archivo_audio.filename.lower().endswith(".mp3"):
+                raise ValueError("El archivo debe ser .mp3")
+            upload_dir = current_app.config['UPLOAD_AUDIO_FOLDER']            # ✅
+            os.makedirs(upload_dir, exist_ok=True)
+
+            # opcional: evitar colisiones de nombres
+            from werkzeug.utils import secure_filename
+            fname = secure_filename(archivo_audio.filename)
+
+            path_abs = os.path.join(upload_dir, fname)
+            archivo_audio.save(path_abs)
+
+            # ✅ URL pública: que apunte a /static/uploads/audios/...
+            rel_path = f"uploads/audios/{fname}"
+            link_audio = url_for('static', filename=rel_path, _external=False)
 
         nuevo_track = Track(
-            nombreTrack=str(data['nombreTrack']).strip(),
+            nombreTrack=data['nombreTrack'].strip(),
             bpm=data.get('bpm'),
             duracion=data.get('duracion'),
             formatoTrack=data.get('formatoTrack'),
@@ -78,28 +84,16 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
             idUsuario=data.get('idUsuario'),
             favoritosTrack=data.get('favoritosTrack', 0),
             reproduccionesTrack=data.get('reproduccionesTrack', 0),
-            linkAudio=link_audio
+            linkAudio=link_audio                    # ✅ ahora es /static/uploads/audios/xxx.mp3
         )
-
         db.session.add(nuevo_track)
         db.session.commit()
-
-        # Releer con relaciones para devolver completo
-        nuevo_track = (
-            db.session.query(Track)
-            .options(
-                joinedload(Track.usuario),          # dueño del track (para nombreUsuario)
-                joinedload(Track.discografica),     # opcional
-                joinedload(Track.genero),           # opcional
-            )
-            .get(nuevo_track.idTrack)
-        )
         return nuevo_track
 
     except Exception as e:
         db.session.rollback()
         logging.exception("Error al crear el track")
-        raise e
+        raise
 
 # -------------------- ACTUALIZAR TRACK --------------------
 
