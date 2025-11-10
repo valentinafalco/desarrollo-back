@@ -5,13 +5,8 @@ from main.dominios.publicaciones.modelo_publicacionEvento import PublicacionEven
 from main.dominios.usuario.modelo_usuario import Usuario
 from main.dominios.track.modelo_track import Track   # ajustá el path si difiere
 
-
 # -------------------- VALIDAR CAMPOS --------------------
 def _validar_campos(data, parcial=False):
-    """
-    Si parcial=True permite updates parciales (PATCH-like).
-    Si parcial=False exige todos los obligatorios (POST/PUT).
-    """
     obligatorios = ['tituloEvento', 'tipoEvento', 'fechaEvento', 'idUsuario', 'idTrack']
     if not parcial:
         for campo in obligatorios:
@@ -20,29 +15,25 @@ def _validar_campos(data, parcial=False):
             if data[campo] in (None, ""):
                 raise ValueError(f"El campo '{campo}' no puede estar vacío")
     else:
-        # si viene, que no sea vacío
         for k, v in data.items():
             if v in (None, ""):
                 raise ValueError(f"El campo '{k}' no puede estar vacío")
 
-    # Validaciones de longitudes (solo si vienen)
     if 'tituloEvento' in data and len(data['tituloEvento']) > 50:
         raise ValueError("El campo 'tituloEvento' no puede superar los 50 caracteres")
     if 'tipoEvento' in data and len(data['tipoEvento']) > 40:
         raise ValueError("El campo 'tipoEvento' no puede superar los 40 caracteres")
-    if 'ubicacion' in data and data['ubicacion'] is not None and len(data['ubicacion']) > 300:
+    if 'ubicacion' in data and data.get('ubicacion') and len(data['ubicacion']) > 300:
         raise ValueError("El campo 'ubicacion' no puede superar los 300 caracteres")
-    if 'descripcion' in data and data['descripcion'] is not None and len(data['descripcion']) > 300:
+    if 'descripcion' in data and data.get('descripcion') and len(data['descripcion']) > 300:
         raise ValueError("El campo 'descripcion' no puede superar los 300 caracteres")
 
-    # Validación de fecha (YYYY-MM-DD)
     if 'fechaEvento' in data:
         try:
             datetime.strptime(data['fechaEvento'], "%Y-%m-%d")
         except ValueError:
             raise ValueError("El campo 'fechaEvento' debe tener formato YYYY-MM-DD")
 
-    # Validación de FKs (solo si vienen)
     if 'idUsuario' in data:
         if not Usuario.query.get(data['idUsuario']):
             raise ValueError("Usuario no válido")
@@ -54,35 +45,36 @@ def _validar_campos(data, parcial=False):
 
 
 # -------------------- CREAR --------------------
-def crear_publicacion_evento(data: dict):
+def crear_publicacion_evento(data: dict, archivo=None):
     _validar_campos(data, parcial=False)
     try:
+        imagen_bytes = archivo.read() if archivo else None
         publicacion = PublicacionEvento(
             tituloEvento=data['tituloEvento'].strip(),
             descripcion=(data.get('descripcion') or "").strip() or None,
             tipoEvento=data['tipoEvento'].strip(),
             ubicacion=(data.get('ubicacion') or "").strip() or None,
-            fechaEvento=data['fechaEvento'],    # string YYYY-MM-DD (SQLAlchemy Date lo castea)
+            fechaEvento=data['fechaEvento'],
             idTrack=data['idTrack'],
             idUsuario=data['idUsuario'],
+            imagen=imagen_bytes
         )
         db.session.add(publicacion)
         db.session.commit()
         return publicacion
     except Exception as e:
         db.session.rollback()
-        logging.exception("Error al crear publicación de evento")
+        logging.exception("Error al crear la publicación de evento")
         raise e
 
 
 # -------------------- ACTUALIZAR --------------------
-def actualizar_publicacion_evento(id: int, data: dict):
+def actualizar_publicacion_evento(id: int, data: dict, archivo=None):
     publicacion = PublicacionEvento.query.get(id)
     if not publicacion:
         raise ValueError("Publicación no encontrada")
 
     _validar_campos(data, parcial=True)
-
     try:
         if 'tituloEvento' in data:
             publicacion.tituloEvento = data['tituloEvento'].strip()
@@ -99,11 +91,14 @@ def actualizar_publicacion_evento(id: int, data: dict):
         if 'idUsuario' in data:
             publicacion.idUsuario = data['idUsuario']
 
+        if archivo:
+            publicacion.imagen = archivo.read()
+
         db.session.commit()
         return publicacion
     except Exception as e:
         db.session.rollback()
-        logging.exception("Error al actualizar publicación de evento")
+        logging.exception("Error al actualizar la publicación")
         raise e
 
 
@@ -119,24 +114,19 @@ def eliminar_publicacion_evento(id: int):
         return True
     except Exception as e:
         db.session.rollback()
-        logging.exception("Error al eliminar publicación de evento")
+        logging.exception("Error al eliminar publicación")
         raise e
 
 
 # -------------------- LISTAR --------------------
 def listar_publicaciones_evento():
-    try:
-        publicaciones = PublicacionEvento.query.all()
-        if not publicaciones:
-            # mantener la semántica del ejemplo de metodoPago
-            raise ValueError("No hay publicaciones registradas")
-        return publicaciones
-    except Exception as e:
-        logging.exception("Error al listar publicaciones")
-        raise e
+    publicaciones = PublicacionEvento.query.all()
+    if not publicaciones:
+        raise ValueError("No hay publicaciones registradas")
+    return publicaciones
 
 
-# -------------------- OBTENER POR ID --------------------
+# -------------------- OBTENER --------------------
 def obtener_publicacion_evento(id: int):
     publicacion = PublicacionEvento.query.get(id)
     if not publicacion:
