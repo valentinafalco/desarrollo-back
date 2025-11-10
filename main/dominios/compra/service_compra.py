@@ -1,12 +1,14 @@
 import logging
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 from main.extension import db
 from main.dominios.compra.modelo_compra import Compra
 from main.dominios.usuario.modelo_usuario import Usuario
 from main.dominios.track.modelo_track import Track
 from main.dominios.metodoPago.modelo_metodoPago import MetodoPago_Usuario
 
-#Validaciones de los campos de entrada
+# -------------------- VALIDACIONES --------------------
+
 def validar_campos(data):
     campos_obligatorios = ['idUsuario', 'idTrack', 'idMetodo', 'fechaCompra', 'montoCompra']
 
@@ -16,16 +18,17 @@ def validar_campos(data):
         if not data[campo]:
             raise ValueError(f"El campo {campo} no puede estar vacío")
 
-    #Validar tipos y formato de fecha
+    # Validar formato de fecha
     try:
         fecha = datetime.strptime(data['fechaCompra'], '%Y-%m-%d').date()
     except ValueError:
         raise ValueError("El formato de fecha debe ser YYYY-MM-DD")
 
+    # Validar monto numérico
     if not isinstance(data['montoCompra'], (int, float)):
         raise ValueError("El montoCompra debe ser numérico")
 
-    #Validar existencia de claves foráneas
+    # Validar FKs
     if not Usuario.query.get(data['idUsuario']):
         raise ValueError("Usuario no válido")
 
@@ -37,11 +40,10 @@ def validar_campos(data):
 
     return fecha
 
+# -------------------- CRUD --------------------
 
-#Crear una compra
 def crear_compra(data):
     fecha = validar_campos(data)
-
     try:
         compra = Compra(
             idUsuario=data['idUsuario'],
@@ -52,21 +54,29 @@ def crear_compra(data):
         )
         db.session.add(compra)
         db.session.commit()
+        # Eager-load para devolver completa si luego se serializa
+        compra = (
+            db.session.query(Compra)
+            .options(
+                joinedload(Compra.track).joinedload(Track.usuario),
+                # Si existen relaciones:
+                joinedload(Compra.track).joinedload(Track.discografica),
+                joinedload(Compra.track).joinedload(Track.genero),
+            )
+            .get(compra.idCompra)
+        )
         return compra
     except Exception as e:
         db.session.rollback()
         logging.exception("Error al crear la compra")
         raise e
 
-
-#Actualizar una compra existente
 def actualizar_compra(id, data):
     compra = Compra.query.get(id)
     if not compra:
         raise ValueError("Compra no encontrada")
 
     fecha = validar_campos(data)
-
     try:
         compra.idUsuario = data['idUsuario']
         compra.idTrack = data['idTrack']
@@ -75,19 +85,25 @@ def actualizar_compra(id, data):
         compra.montoCompra = data['montoCompra']
 
         db.session.commit()
+        compra = (
+            db.session.query(Compra)
+            .options(
+                joinedload(Compra.track).joinedload(Track.usuario),
+                joinedload(Compra.track).joinedload(Track.discografica),
+                joinedload(Compra.track).joinedload(Track.genero),
+            )
+            .get(compra.idCompra)
+        )
         return compra
     except Exception as e:
         db.session.rollback()
         logging.exception("Error al actualizar la compra")
         raise e
 
-
-#Eliminar una compra
 def eliminar_compra(id):
     compra = Compra.query.get(id)
     if not compra:
         raise ValueError("Compra no encontrada")
-
     try:
         db.session.delete(compra)
         db.session.commit()
@@ -97,22 +113,34 @@ def eliminar_compra(id):
         logging.exception("Error al eliminar la compra")
         raise e
 
-
-#Listar todas las compras
 def listar_compras():
     try:
-        compras = Compra.query.all()
-        if not compras:
-            raise ValueError("No hay compras registradas")
+        compras = (
+            db.session.query(Compra)
+            .options(
+                joinedload(Compra.track).joinedload(Track.usuario),     # 👈 usuario dueño del track
+                joinedload(Compra.track).joinedload(Track.discografica),
+                joinedload(Compra.track).joinedload(Track.genero),
+            )
+            .all()
+        )
+        # No lances error si no hay compras; devolvé []
         return compras
     except Exception as e:
         logging.exception("Error al listar las compras")
         raise e
 
-
-#Obtener una compra específica
 def obtener_compra(id):
-    compra = Compra.query.get(id)
+    compra = (
+        db.session.query(Compra)
+        .options(
+            joinedload(Compra.track).joinedload(Track.usuario),
+            joinedload(Compra.track).joinedload(Track.discografica),
+            joinedload(Compra.track).joinedload(Track.genero),
+        )
+        .filter(Compra.idCompra == id)
+        .first()
+    )
     if not compra:
         raise ValueError("Compra no encontrada")
     return compra

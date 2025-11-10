@@ -1,15 +1,18 @@
 import logging
 from datetime import datetime
+
+from sqlalchemy.orm import joinedload
 from main.extension import db
+
 from main.dominios.venta.modelo_venta import Venta
 from main.dominios.usuario.modelo_usuario import Usuario
 from main.dominios.track.modelo_track import Track
+from main.dominios.compra.modelo_compra import Compra  # 👈 usamos compras para derivar ventas
 
 
-# -------------------- VALIDAR CAMPOS --------------------
+# -------------------- VALIDAR CAMPOS (para endpoints CRUD de Venta) --------------------
 
 def validar_campos(data):
-
     campos_obligatorios = ['idUsuario', 'idTrack']
 
     # Verificar campos requeridos
@@ -22,7 +25,6 @@ def validar_campos(data):
     # Validar existencia de Usuario y Track
     if not Usuario.query.get(data['idUsuario']):
         raise ValueError("Usuario no válido o inexistente")
-
     if not Track.query.get(data['idTrack']):
         raise ValueError("Track no válido o inexistente")
 
@@ -38,11 +40,10 @@ def validar_campos(data):
     return fecha
 
 
-# -------------------- CREAR VENTA --------------------
+# -------------------- CREAR / ACTUALIZAR / ELIMINAR (para tabla Venta real) --------------------
 
 def crear_venta(data):
     fecha = validar_campos(data)
-
     try:
         venta = Venta(
             idUsuario=data['idUsuario'],
@@ -58,15 +59,12 @@ def crear_venta(data):
         raise e
 
 
-# -------------------- ACTUALIZAR VENTA --------------------
-
 def actualizar_venta(id, data):
     venta = Venta.query.get(id)
     if not venta:
         raise ValueError("Venta no encontrada")
 
     fecha = validar_campos(data)
-
     try:
         venta.idUsuario = data['idUsuario']
         venta.idTrack = data['idTrack']
@@ -80,13 +78,10 @@ def actualizar_venta(id, data):
         raise e
 
 
-# -------------------- ELIMINAR VENTA --------------------
-
 def eliminar_venta(id):
     venta = Venta.query.get(id)
     if not venta:
         raise ValueError("Venta no encontrada")
-
     try:
         db.session.delete(venta)
         db.session.commit()
@@ -97,22 +92,41 @@ def eliminar_venta(id):
         raise e
 
 
-# -------------------- LISTAR VENTAS --------------------
+# -------------------- LISTAR / OBTENER  --------------------
+# 🔹 Clave: Listamos VENTAS derivadas de COMPRAS (Compra JOIN Track),
+#     filtrando por vendedor (dueño del track) si se pasa id_usuario_vendedor.
 
-def listar_ventas():
+def listar_ventas(id_usuario_vendedor: int | None = None):
+    """
+    Devuelve 'ventas' derivadas de la tabla Compra, filtrando por el dueño del track (vendedor).
+    Si id_usuario_vendedor es None, devuelve TODAS las ventas del sistema (todas las compras).
+
+    Retorna: lista de objetos Compra con .track cargado (usuario/discografica/genero).
+    """
     try:
-        ventas = Venta.query.all()
-        if not ventas:
-            raise ValueError("No hay ventas registradas")
-        return ventas
+        q = (
+            db.session.query(Compra)
+            .join(Track, Compra.idTrack == Track.idTrack)
+            .options(
+                joinedload(Compra.track).joinedload(Track.usuario),       # nombreUsuario del dueño
+                joinedload(Compra.track).joinedload(Track.discografica),  # opcional
+                joinedload(Compra.track).joinedload(Track.genero),        # opcional
+            )
+        )
+        if id_usuario_vendedor is not None:
+            q = q.filter(Track.idUsuario == id_usuario_vendedor)
+
+        return q.all()
     except Exception as e:
-        logging.exception("Error al listar las ventas")
+        logging.exception("Error al listar las ventas derivadas de compras")
         raise e
 
 
-# -------------------- OBTENER VENTA --------------------
-
 def obtener_venta(id):
+    """
+    Si necesitás seguir usando la tabla Venta real para obtener por id, se deja igual.
+    Para 'ventas derivadas', lo normal es no usar este get puntual.
+    """
     venta = Venta.query.get(id)
     if not venta:
         raise ValueError("Venta no encontrada")

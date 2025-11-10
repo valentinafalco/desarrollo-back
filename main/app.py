@@ -14,6 +14,7 @@ from main.dominios.playlist.rutas_playlist import playlist_bp
 from main.dominios.descripcionplaylist.rutas_descripcionPlaylist import descripcionplaylist_bp
 from main.dominios.venta.rutas_venta import venta_bp
 from main.dominios.auth.rutas_auth import auth_bp
+from main.dominios.publicaciones.ruta_publicacionEvento import publicacion_evento_bp
 
 def create_app():
     app = Flask(__name__)
@@ -39,7 +40,12 @@ def create_app():
     app.register_blueprint(descripcionplaylist_bp)
     app.register_blueprint(venta_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(publicacion_evento_bp)
     mail.init_app(app)
+
+    @app.route('/api/health', methods=['GET'])
+    def health():
+        return {'status': 'ok'}, 200
 
     return app
 
@@ -47,3 +53,6 @@ def create_app():
 if __name__ == '__main__':
     app = create_app()
     app.run(debug=True)
+
+
+

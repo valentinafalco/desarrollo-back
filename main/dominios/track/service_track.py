@@ -2,6 +2,9 @@ import os
 import logging
 import base64
 from datetime import datetime
+
+from sqlalchemy.orm import joinedload
+
 from main.extension import db
 from main.dominios.track.modelo_track import Track
 from main.dominios.genero.modelo_genero import Genero
@@ -11,11 +14,10 @@ from main.dominios.usuario.modelo_usuario import Usuario
 # Carpeta donde se guardarán los audios
 UPLOAD_FOLDER = "main/static/uploads/audios"
 
-
 # -------------------- VALIDAR CAMPOS --------------------
 
 def validar_campos(data):
-    if 'nombreTrack' not in data or not data['nombreTrack'].strip():
+    if 'nombreTrack' not in data or not str(data['nombreTrack']).strip():
         raise ValueError("El campo 'nombreTrack' es obligatorio.")
 
     if 'fechaLanzamiento' in data and data['fechaLanzamiento']:
@@ -36,14 +38,13 @@ def validar_campos(data):
         if not Usuario.query.get(data['idUsuario']):
             raise ValueError("El usuario no existe.")
 
-
 # -------------------- CREAR TRACK --------------------
 
 def crear_track(data, archivo_audio=None, archivo_imagen=None):
     try:
         validar_campos(data)
 
-        # Procesar imagen (archivo o base64)
+        # Imagen (archivo o base64)
         imagen_bytes = None
         if archivo_imagen:
             if not archivo_imagen.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
@@ -53,7 +54,7 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
             imagen_base64 = data.get('imagenTrack')
             imagen_bytes = base64.b64decode(imagen_base64) if imagen_base64 else None
 
-        # Procesar archivo de audio (si se envía)
+        # Audio (opcional)
         link_audio = None
         if archivo_audio:
             if not archivo_audio.filename.endswith(".mp3"):
@@ -65,7 +66,7 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
             link_audio = f"/static/uploads/audios/{nombre_archivo}"
 
         nuevo_track = Track(
-            nombreTrack=data['nombreTrack'].strip(),
+            nombreTrack=str(data['nombreTrack']).strip(),
             bpm=data.get('bpm'),
             duracion=data.get('duracion'),
             formatoTrack=data.get('formatoTrack'),
@@ -82,13 +83,23 @@ def crear_track(data, archivo_audio=None, archivo_imagen=None):
 
         db.session.add(nuevo_track)
         db.session.commit()
+
+        # Releer con relaciones para devolver completo
+        nuevo_track = (
+            db.session.query(Track)
+            .options(
+                joinedload(Track.usuario),          # dueño del track (para nombreUsuario)
+                joinedload(Track.discografica),     # opcional
+                joinedload(Track.genero),           # opcional
+            )
+            .get(nuevo_track.idTrack)
+        )
         return nuevo_track
 
     except Exception as e:
         db.session.rollback()
         logging.exception("Error al crear el track")
         raise e
-
 
 # -------------------- ACTUALIZAR TRACK --------------------
 
@@ -134,13 +145,23 @@ def actualizar_track(id, data, archivo_audio=None, archivo_imagen=None):
         track.reproduccionesTrack = data.get('reproduccionesTrack', track.reproduccionesTrack)
 
         db.session.commit()
+
+        # Releer con relaciones para devolver completo
+        track = (
+            db.session.query(Track)
+            .options(
+                joinedload(Track.usuario),
+                joinedload(Track.discografica),
+                joinedload(Track.genero),
+            )
+            .get(track.idTrack)
+        )
         return track
 
     except Exception as e:
         db.session.rollback()
         logging.exception("Error al actualizar el track")
         raise e
-
 
 # -------------------- ELIMINAR TRACK --------------------
 
@@ -157,24 +178,38 @@ def eliminar_track(id):
         logging.exception("Error al eliminar el track")
         raise e
 
-
 # -------------------- LISTAR TRACKS --------------------
 
 def listar_tracks():
     try:
-        tracks = Track.query.all()
-        if not tracks:
-            raise ValueError("No hay tracks registrados.")
+        tracks = (
+            db.session.query(Track)
+            .options(
+                joinedload(Track.usuario),      # 👈 nombreUsuario disponible
+                joinedload(Track.discografica),
+                joinedload(Track.genero),
+            )
+            .all()
+        )
+        # Devolvé [] si no hay registros (no lances error)
         return tracks
     except Exception as e:
         logging.exception("Error al listar los tracks")
         raise e
 
-
 # -------------------- OBTENER TRACK --------------------
 
 def obtener_track(id):
-    track = Track.query.get(id)
+    track = (
+        db.session.query(Track)
+        .options(
+            joinedload(Track.usuario),
+            joinedload(Track.discografica),
+            joinedload(Track.genero),
+        )
+        .filter(Track.idTrack == id)
+        .first()
+    )
     if not track:
         raise ValueError("Track no encontrado.")
     return track
