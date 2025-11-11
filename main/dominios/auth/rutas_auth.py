@@ -1,4 +1,3 @@
-# main/dominios/auth/rutas_auth.py
 from flask import Blueprint
 from main.dominios.auth.controller_auth import login_controller, me_controller
 
