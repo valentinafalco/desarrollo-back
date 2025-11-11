@@ -13,18 +13,10 @@ from main.dominios.track.service_track import (
 
 # -------- Helper: serialización pública enriquecida --------
 def _serialize_track_public(t):
-    """
-    Enriquecer el serialize del Track con datos de usuario.
-    - Incluye usuario: { idUsuario, nombreUsuario }
-    - Rellena 'artista' con nombreUsuario si existe.
-    - Mantiene compatibilidad con t.serialize() original.
-    """
-    # Base del modelo
     base = {}
     try:
         base = t.serialize()
     except Exception:
-        # fallback muy básico si el modelo no tiene serialize
         base = {
             "idTrack": getattr(t, "idTrack", None) or getattr(t, "id", None),
             "nombreTrack": getattr(t, "nombreTrack", None) or getattr(t, "titulo", None),
@@ -32,7 +24,6 @@ def _serialize_track_public(t):
             "formato": getattr(t, "formato", None),
         }
 
-    # Usuario (dueño del track)
     usuario = getattr(t, "usuario", None)
     id_usuario = None
     nombre_usuario = None
@@ -40,16 +31,13 @@ def _serialize_track_public(t):
         id_usuario = getattr(usuario, "idUsuario", None) or getattr(usuario, "id", None)
         nombre_usuario = getattr(usuario, "nombreUsuario", None) or getattr(usuario, "nombre", None)
 
-    # También intentar leer idUsuario directo del track por si existe FK plana
     id_usuario = id_usuario or getattr(t, "idUsuario", None)
 
-    # Armar objeto usuario en la respuesta
     base["usuario"] = {
         "idUsuario": id_usuario,
         "nombreUsuario": nombre_usuario
     }
 
-    # Campo plano 'artista' para el front (si no estaba)
     if not base.get("artista"):
         base["artista"] = nombre_usuario
 

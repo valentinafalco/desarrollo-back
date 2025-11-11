@@ -9,8 +9,6 @@ from main.dominios.track.controller_track import (
     sumar_reproduccion_controller
 )
 
-# Crear blueprint para agrupar rutas relacionadas con Track
-
 track_bp = Blueprint('track', __name__)
 
 # GET - Listar todos los tracks

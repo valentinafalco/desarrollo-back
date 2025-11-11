@@ -13,7 +13,7 @@ from main.dominios.publicaciones.service_publicacionEvento import (
 # -------------------- CREAR --------------------
 def crear_publicacion_evento_controller():
     data = request.form.to_dict()
-    archivo = request.files.get("archivo")  # imagen opcional
+    archivo = request.files.get("archivo")  
 
     if not data:
         return jsonify({'error': 'No se recibieron datos válidos'}), 400

@@ -1,4 +1,3 @@
-# main/dominios/auth/controller_auth.py
 from flask import request, jsonify
 from main.dominios.auth.service_auth import login_service
 import logging
